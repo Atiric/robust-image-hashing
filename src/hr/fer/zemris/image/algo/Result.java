@@ -83,7 +83,7 @@ public class Result {
 	@Override
 	public String toString() {
 		//show result for Jaccard distance
-		return (1-thresh) + "\t" + precision + "\t" + recall + "\t" + f1 ;
+		return thresh + "\t" + precision + "\t" + recall + "\t" + f1 ;
 	}
 
 

@@ -18,7 +18,7 @@ set multiplot layout 3,3 rowsfirst
 #plot for [i=3:5]  using 2:i path index 0 with lines  
 
 path = "results_precision_recall_f1.txt"
-xlab = "Jaccard distance threshold"
+xlab = "Hamming distance threshold"
 
 set xlabel xlab
 set ylabel "P, R, F1"

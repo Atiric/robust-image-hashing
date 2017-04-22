@@ -24,6 +24,11 @@ import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.highgui.Highgui;
 import org.opencv.imgproc.Imgproc;
+/**
+ * Abstraction of image that can be hashed using {@link IHashableImageAlgo}.
+ * @author Armin
+ *
+ */
 
 public class HashableImage {
 	/**

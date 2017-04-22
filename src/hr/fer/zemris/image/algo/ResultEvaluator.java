@@ -207,10 +207,10 @@ public class ResultEvaluator {
 				//graph is represented as Jaccard distance on x axis and precision, recall and F1 on y axis
 				if( !confWithoutThresh.equals(tempConf) ){
 					
-					if( !confWithoutThresh.isEmpty() ){
-						bw.write(confWithoutThresh + "	0.0	1.00	0.00	0.00\n");
-						
-					}
+//					if( !confWithoutThresh.isEmpty() ){
+//						bw.write(confWithoutThresh + "	0.0	1.00	0.00	0.00\n");
+//						
+//					}
 					bw.write("\n" + tempConf+"\n");
 					confWithoutThresh = tempConf;
 				}
@@ -221,7 +221,7 @@ public class ResultEvaluator {
 				bw.write(confWithThresh + "\t" + result + "\n" );
 				
 			}
-			bw.write(confWithoutThresh + "	0.0	1.00	0.00	0.00\n");
+			//bw.write(confWithoutThresh + "	0.0	1.00	0.00	0.00\n");
 			
 			ResultEvaluator.bw.close();
 		} catch (IOException e) {

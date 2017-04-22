@@ -14,7 +14,7 @@ public class AvgHashMock  implements IHashableImageAlgo{
 		}
 		hImg.getBlockAsBitset(0);
 		
-		System.out.println("Jaccardova sličnost je " + Comparison.compareTwoBitsets(hImg.getBlockAsBitset(0), hImg.getBlockAsBitset(0)) );
+		System.out.println("Jaccardova sličnost je " + Comparison.compareTwoBitsetsJaccard(hImg.getBlockAsBitset(0), hImg.getBlockAsBitset(0)) );
 		return null;
 		
 	}	

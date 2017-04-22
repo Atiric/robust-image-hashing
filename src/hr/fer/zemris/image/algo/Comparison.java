@@ -39,7 +39,7 @@ public class Comparison {
 	 * @param imgBitSet2 First {@link BitSet} 
 	 * @return Similarity of two image bit sets.
 	 */
-	public static double compareTwoBitsets( BitSet imgBitSet1, BitSet imgBitSet2){
+	public static double compareTwoBitsetsJaccard( BitSet imgBitSet1, BitSet imgBitSet2){
 		// length is logical size of bitset which means index of highest set index of bit
 //		if( imgBitSet1.size() != imgBitSet2.size() ){
 //			throw new IllegalArgumentException("BitSets not the same size");
@@ -59,6 +59,25 @@ public class Comparison {
 		
 		return (double) counterX/counterY;
 		
+	}
+	/**
+	 * Method that compares two bitsets and calculates the number of differencing bits in two {@link BitSet}.
+	  * @param imgBitSet1 First {@link BitSet} 
+	 * @param imgBitSet2 First {@link BitSet} 
+	 * @return Hamming distance of two image bit sets.
+	 */
+	public static int compareTwoBitsetsHamming( BitSet imgBitSet1, BitSet imgBitSet2){
+		int numDifferentBits = 0;
+		//TODO check for changes in number of RGB components of one pixel
+		//size of hash
+		int size = HashableImage.NUM_BLOCK_COL * HashableImage.NUM_BLOCK_ROW * HashableImage.BITS_FOR_COMPONENT;
+		
+		for(int bitIndex = 0; bitIndex < size; bitIndex++){
+			if(imgBitSet1.get(bitIndex) != imgBitSet2.get(bitIndex) ){
+				numDifferentBits++;
+			}
+		}
+		return numDifferentBits;
 	}
 	
 	
@@ -106,33 +125,29 @@ public class Comparison {
 	 * distance.
 	 * @return Currently returns number of hashes within distance.
 	 */
-	public static int checkWithinHammingDistance(List<BitSet> candidates,
+	public static List<Integer> checkWithinHammingDistance(List<BitSet> candidates,
 			int indexLine, int hammingDistance) {
 		//TODO adapt for algorithm
 		int counter = 0;
 		BitSet current = candidates.get(indexLine);
+		List<Integer> similar = new ArrayList<Integer>();
+		
 		for (int i = 0; i < candidates.size(); i++) {
 			
 			if( i == indexLine ) continue;
 			BitSet testHash = candidates.get(i);
-			int numDifferentBits = 0;
-			
-			for(int bitIndex = 0; bitIndex < testHash.size(); bitIndex++){
-				if(current.get(bitIndex) != testHash.get(bitIndex) ){
-					numDifferentBits++;
-				}
-				
-				if( numDifferentBits > hammingDistance ){
-					break;
-				}
-			}
+			int numDifferentBits = compareTwoBitsetsHamming(current, testHash);
 			
 			
 			if( numDifferentBits >= 0 && numDifferentBits <= hammingDistance ){
 				counter++;
+				similar.add(i);
+				Comparison.results.put(i, (double) numDifferentBits);
 			}
+			
 		}
-		return counter;
+		System.out.println("Pronađeno " + counter + " kandidata!");
+		return similar;
 	}
 	/**
 	 * Method that checks list of candidates. All candidates are compared to hash
@@ -224,9 +239,9 @@ public class Comparison {
 		String needlesPath = "test";
 		boolean isGray = true ;
 		
-		int[] arrayOfBitsSize = new int[]{3, 4, 5};
+		int[] arrayOfBitsSize = new int[]{4, 6, 7};
 		// define the blocks as 2 per row 2 per col, 3 per row 3 per col ... etc
-		int[] blockNums = new int[] { 2, 3, 4};
+		int[] blockNums = new int[] { 4, 16, 32};
 
 		Dataset caltech256Dataset = new Dataset("modified_images");//"TPobfuscated"
 		Comparison.imagePaths = caltech256Dataset.getImagePaths();
@@ -262,13 +277,16 @@ public class Comparison {
 
 	private static void makeIterationForConfiguration(int numBits,int numBlock, String needle, boolean isGray, IHashableImageAlgo algo) {
 		//initial starting point for threshold, 
-		double threshold = Comparison.THRESHOLD;
-		double INCREMENT = 0.05;
-		double MAX_THRESH = 0.96;//on x axis of graph it is represented as Jaccard distance 1 - MAX_THRESH
-		
-		setParamsForMeasurement(numBits, numBlock, threshold);
+		int threshold = (int) Comparison.THRESHOLD;
+		int INCREMENT = 1;
+		int DEFAULT_SIZE = 10;
 		
 		
+		
+		setParamsForMeasurement(numBits, numBlock,(double) threshold);
+		//after setting the params that are static calculate size of hash
+		int SIZE_OF_HASH = HashableImage.BITS_FOR_COMPONENT * HashableImage.NUM_BLOCK_COL * HashableImage.NUM_BLOCK_ROW;//and times num of component which is 1
+		int MAX_THRESH = SIZE_OF_HASH > DEFAULT_SIZE ? DEFAULT_SIZE: SIZE_OF_HASH;//on x axis of graph it is represented as Jaccard distance 1 - MAX_THRESH
 		HashableImage img = new HashableImage(isGray, needle);
 		
 		List<BitSet> candidates = new ArrayList<BitSet>(10000);
@@ -287,14 +305,14 @@ public class Comparison {
 			
 		}
 		
-		while( Double.compare(threshold, MAX_THRESH) < 0 ){
+		while( threshold  <  MAX_THRESH ){
 			
 			String searchNeedleSignature = needle.substring(needle.lastIndexOf(File.separatorChar)+1, needle.lastIndexOf(".") );
 			String measurementFileName ="results/"+
 					searchNeedleSignature + 
 					"-bits-"+ numBits+
 					"-blocks-"+ numBlock+ 
-					"-thresh" + "-" + String.format(Locale.UK, "%.2f", threshold) +".txt";
+					"-thresh" + "-" + String.format(Locale.UK, "%.2f", (double)threshold) +".txt";
 			BufferedWriter bw = null;
 			try {
 				bw= Files.newBufferedWriter(
@@ -302,8 +320,9 @@ public class Comparison {
 						StandardOpenOption.CREATE,
 						StandardOpenOption.WRITE,
 						StandardOpenOption.TRUNCATE_EXISTING);
-				
-				List<Integer> results = checkWithinJaccardDistance(candidates, 0, threshold);
+//				//compare with JaccardDistance
+//				List<Integer> results = checkWithinJaccardDistance(candidates, 0, threshold);
+				List<Integer> results = checkWithinHammingDistance(candidates, 0, threshold);
 				//since we added needle real index of result is indexResult -1
 				for(Integer indexResult : results){
 					bw.write(
