@@ -278,22 +278,22 @@ public class Comparison {
 	private static void makeIterationForConfiguration(int numBits,int numBlock, String needle, boolean isGray, IHashableImageAlgo algo) {
 		//initial starting point for threshold, 
 		int threshold = (int) Comparison.THRESHOLD;
-		int INCREMENT = 1;
-		int DEFAULT_SIZE = 10;
+		int DEFAULT_SIZE = 50;
 		
 		
 		
 		setParamsForMeasurement(numBits, numBlock,(double) threshold);
 		//after setting the params that are static calculate size of hash
 		int SIZE_OF_HASH = HashableImage.BITS_FOR_COMPONENT * HashableImage.NUM_BLOCK_COL * HashableImage.NUM_BLOCK_ROW;//and times num of component which is 1
-		int MAX_THRESH = SIZE_OF_HASH > DEFAULT_SIZE ? DEFAULT_SIZE: SIZE_OF_HASH;//on x axis of graph it is represented as Jaccard distance 1 - MAX_THRESH
+		int MAX_THRESH = SIZE_OF_HASH > DEFAULT_SIZE ? SIZE_OF_HASH: DEFAULT_SIZE;//on x axis of graph it is represented as Jaccard distance 1 - MAX_THRESH
+		int INCREMENT = (int)(0.05*SIZE_OF_HASH);
 		HashableImage img = new HashableImage(isGray, needle);
 		
 		List<BitSet> candidates = new ArrayList<BitSet>(10000);
-		Long startTime = System.currentTimeMillis();
+		Long startTime = System.nanoTime();
 		candidates.add(HashableImage.executeAlgorithm(algo, img));
-		Long endTime = System.currentTimeMillis();
-		System.out.println("Time needed for one calculation of hash : " + (endTime - startTime) + " ms");
+		Long endTime = System.nanoTime();
+		System.out.println("Time needed for one calculation of hash : " + (endTime - startTime) + " ns");
 		
 		for (int j = 0; j < imagePaths.size(); j++) {
 			//Path pathImg = imagePaths.get(j);
@@ -326,11 +326,15 @@ public class Comparison {
 				//since we added needle real index of result is indexResult -1
 				for(Integer indexResult : results){
 					bw.write(
-							imagePaths.get(indexResult - 1) +
+							imagePaths.get(indexResult - 1).getFileName() +
 							"\t" +
 							Comparison.results.get(indexResult)+"\n");
 				}
 				bw.close();
+//				if( results.size() == candidates.size() - 1 ) {
+//					// no need to continue all images with max length of hash found
+//					break;
+//				}
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

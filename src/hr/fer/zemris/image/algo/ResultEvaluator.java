@@ -9,7 +9,9 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -183,9 +185,43 @@ public class ResultEvaluator {
 	public static void main(String[] args) {
 		ResultEvaluator re = new ResultEvaluator("results", "test", "modified_images");
 		re.beginEvaluation();
-		Object[] keys = re.getResults().keySet().toArray();
+		List<String> keys = new ArrayList<> ( re.getResults().keySet());
+		keys.sort( (key1, key2) -> {
+			String conf1 = key1.substring(0, key1.lastIndexOf("-"));
+			String conf2 = key2.substring(0, key2.lastIndexOf("-"));
+			
+			int indexBlock1 = key1.indexOf("-blo");
+			int indexBlock2 = key2.indexOf("-blo");
+			
+			int block1 = Integer.parseInt(
+					key1.substring( 
+							indexBlock1 + 8,//after the "-blocks-" is num of blocks
+							key1.indexOf("-thr")));
+			int block2 = Integer.parseInt(
+					key2.substring( 
+							indexBlock2 + 8,//after the "-blocks-" is num of blocks
+							key2.indexOf("-thr")));
+			int thresh1 = (int) Double.parseDouble( key1.substring(key1.lastIndexOf("-") + 1, key1.lastIndexOf(".")));
+			int thresh2 = (int) Double.parseDouble( key2.substring(key2.lastIndexOf("-") + 1, key2.lastIndexOf(".")));
+			
+			int bits1 = Integer.parseInt( key1.substring( 
+					key1.indexOf("-") + 1,
+					indexBlock1));
+			
+			int bits2 = Integer.parseInt( key2.substring( 
+					key2.indexOf("-") + 1,
+					indexBlock2));
+			
+			if( bits1 == bits2 ){
+				if( block1 == block2 ){
+					return thresh1 - thresh2;
+				}
+				return block1 - block2;
+			}
+			return bits1 - bits2;
+		});
 		//Sorted by its configurations and thresholds, important for plotting the data.
-		Arrays.sort(keys);
+		//Arrays.sort(keys);
 		
 		String confWithoutThresh = "";
 		
