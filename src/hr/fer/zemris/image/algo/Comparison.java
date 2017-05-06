@@ -1,6 +1,8 @@
 package hr.fer.zemris.image.algo;
 
 import hr.fer.zemris.image.dataset.Dataset;
+import hr.fer.zemris.image.dataset.DatasetHashHolder;
+import hr.fer.zemris.image.model.IDatesetHashHolder;
 import hr.fer.zemris.image.model.IHashableImageAlgo;
 
 import java.io.BufferedWriter;
@@ -16,6 +18,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -229,6 +232,7 @@ public class Comparison {
 	 * Image name is a full path to image that is loaded. block_size_row specifies the size of block in rows
 	 * block_size_cols specifies the size of block in columns. is_gray_scale is a 0 or 1, if set image specified is converted as graycale
 	 * @param args Array of parameters as string : image_name block_size_row block_size_cols is_gray_scale
+	 * @param modifiedPath 
 	 * 				 
 	 */
 	public static void main(String[] args) {
@@ -243,68 +247,111 @@ public class Comparison {
 		// define the blocks as 2 per row 2 per col, 3 per row 3 per col ... etc
 		int[] blockNums = new int[] { 4, 16, 32};
 
-		Dataset caltech256Dataset = new Dataset("modified_images");//"TPobfuscated"
-		Comparison.imagePaths = caltech256Dataset.getImagePaths();
+		Dataset dataset = new Dataset("modified_images");//"TPobfuscated"
+		Comparison.imagePaths = dataset.getImagePaths();
 		Comparison.images = new ArrayList<HashableImage>();
 		//mock definitions of block, needed for initializing mock HashableImages,
 		//blocks are recalculated as specified by arrayOfBitsSize and blockNums
 		HashableImage.NUM_BLOCK_COL = 1;
 		HashableImage.NUM_BLOCK_ROW = 1;
 		
+		List<String> needles = findPathsOfFiles(needlesPath);
 		for(int i = 0; i < imagePaths.size(); i++){
 			images.add(new HashableImage(isGray, imagePaths.get(i).toString()));
 		}
-		List<String> needles = findNeedles(needlesPath);
 		IHashableImageAlgo algo = new RobustScalingAlgo();
 		
-		for(String needle: needles){
-			System.out.println("Finding candidates of " + needle);
+		IDatesetHashHolder datasetHashHolder = new DatasetHashHolder();
+		// create hashes for cache
+		for(int bitSizeIndex = 0; bitSizeIndex < arrayOfBitsSize.length; bitSizeIndex++){
+			for( int blockIndex = 0; blockIndex < blockNums.length; blockIndex++){
+				initCacheForConf(
+						arrayOfBitsSize[bitSizeIndex],
+						blockNums[blockIndex],
+						dataset,
+						algo,
+						needles,
+						datasetHashHolder);
+			}
+		}
+		//at this point all hashes can be found in datasetHashHolder
+		images.clear();
+		
+		for(int needleIndex = 0; needleIndex < needles.size(); needleIndex++) {
+			System.out.println("Finding candidates of " + needles.get(needleIndex));
 			for(int bitSizeIndex = 0; bitSizeIndex < arrayOfBitsSize.length; bitSizeIndex++){
 				for( int blockIndex = 0; blockIndex < blockNums.length; blockIndex++){
 					makeIterationForConfiguration(
 							arrayOfBitsSize[bitSizeIndex],
 							blockNums[blockIndex],
-							needle,
+							needles,
 							isGray,
-							algo);
-					
+							algo,
+							needleIndex,
+							datasetHashHolder);
 				}
 			}
 		}
 	
 	}
 
-
-	private static void makeIterationForConfiguration(int numBits,int numBlock, String needle, boolean isGray, IHashableImageAlgo algo) {
+	
+	
+	private static void initCacheForConf(int bits, int blocks, Dataset dataset,
+			IHashableImageAlgo algo, List<String> needlesPath, IDatesetHashHolder datasetHashHolder) {
+		String baseFileName = String.format(IDatesetHashHolder.BASE_KEY_FORMAT, bits, blocks);
+		System.out.println("Calculating and caching hashes for " + baseFileName);
+		
+		setParamsForMeasurement(bits, blocks, 0.0d);
+		
+		List<BitSet> needleHashes = new ArrayList<BitSet>(1500);
+		for(int i=0; i < needlesPath.size(); i++){
+			String path = needlesPath.get(i);
+			HashableImage image = new HashableImage(true, path);
+			needleHashes.add(HashableImage.executeAlgorithm(algo, image));
+		}
+		
+		String needlesKey = datasetHashHolder.formKeyForConfiguration(true, baseFileName);
+		datasetHashHolder.setHashesForConfiguration(needlesKey, needleHashes);
+		
+		
+		List<BitSet> modifiedHashes = new ArrayList<BitSet>(9000);
+		for( Path pathModified : dataset.getImagePaths()) {
+			HashableImage image = new HashableImage(true, pathModified.toString());
+			modifiedHashes.add(HashableImage.executeAlgorithm(algo, image));
+		}
+		
+		String modifiedKey = datasetHashHolder.formKeyForConfiguration(false, baseFileName);
+		datasetHashHolder.setHashesForConfiguration(modifiedKey, modifiedHashes);
+		
+		//TODO save them to filesystem?
+		
+	}
+	private static void makeIterationForConfiguration(int numBits,int numBlock, List<String> needles, boolean isGray, IHashableImageAlgo algo, int needleIndex, IDatesetHashHolder datasetHashHolder) {
 		//initial starting point for threshold, 
 		int threshold = (int) Comparison.THRESHOLD;
 		int DEFAULT_SIZE = 50;
+		String needle = needles.get(needleIndex);
 		
-		
-		
-		setParamsForMeasurement(numBits, numBlock,(double) threshold);
+		HashableImage.BITS_FOR_COMPONENT = numBits;
+		HashableImage.NUM_PIXEL_RANGES =(int) Math.pow(2, numBits);
+		HashableImage.NUM_BLOCK_COL = numBlock;
+		HashableImage.NUM_BLOCK_ROW = numBlock;
 		//after setting the params that are static calculate size of hash
 		int SIZE_OF_HASH = HashableImage.BITS_FOR_COMPONENT * HashableImage.NUM_BLOCK_COL * HashableImage.NUM_BLOCK_ROW;//and times num of component which is 1
 		int MAX_THRESH = SIZE_OF_HASH > DEFAULT_SIZE ? SIZE_OF_HASH: DEFAULT_SIZE;//on x axis of graph it is represented as Jaccard distance 1 - MAX_THRESH
 		int INCREMENT = (int)(0.05*SIZE_OF_HASH);
-		HashableImage img = new HashableImage(isGray, needle);
+		
+		String baseKey = String.format(IDatesetHashHolder.BASE_KEY_FORMAT, numBits, numBlock);
+		String needlesKey = datasetHashHolder.formKeyForConfiguration(true, baseKey);
+		String modifiedKey = datasetHashHolder.formKeyForConfiguration(false, baseKey);
 		
 		List<BitSet> candidates = new ArrayList<BitSet>(10000);
-		Long startTime = System.nanoTime();
-		candidates.add(HashableImage.executeAlgorithm(algo, img));
-		Long endTime = System.nanoTime();
-		System.out.println("Time needed for one calculation of hash : " + (endTime - startTime) + " ns");
 		
-		for (int j = 0; j < imagePaths.size(); j++) {
-			//Path pathImg = imagePaths.get(j);
-			HashableImage hImg = Comparison.images.get(j);
-			//HashableImage.showResult(hImg.getImgMat());
-			if( hImg.getImgMat().empty() ) continue;
-			BitSet processedImage = HashableImage.executeAlgorithm(algo, hImg);
-			candidates.add(processedImage);
-			
-		}
-		
+		//add to 0 index the search needle
+		candidates.add(datasetHashHolder.getHashesForConfiguration(needlesKey).get(needleIndex));
+		candidates.addAll(datasetHashHolder.getHashesForConfiguration(modifiedKey));
+
 		while( threshold  <  MAX_THRESH ){
 			
 			String searchNeedleSignature = needle.substring(needle.lastIndexOf(File.separatorChar)+1, needle.lastIndexOf(".") );
@@ -345,16 +392,16 @@ public class Comparison {
 	}
 
 
-	private static List<String> findNeedles(String needlesPath) {
-		List<String> needles = new ArrayList<String>();
+	private static List<String> findPathsOfFiles(String dirPath) {
+		List<String> fileNames = new ArrayList<String>();
 		
 		try {
-			Files.walkFileTree(Paths.get(needlesPath), new SimpleFileVisitor<Path>() {
+			Files.walkFileTree(Paths.get(dirPath), new SimpleFileVisitor<Path>() {
 				
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 					
 					String fileName = file.toString();
-					needles.add(fileName);
+					fileNames.add(fileName);
 					
 					return FileVisitResult.CONTINUE;
 				};
@@ -364,7 +411,7 @@ public class Comparison {
 			System.err.println("Can't visit all files!");
 			System.exit(101);
 		}
-		return needles;
+		return fileNames;
 	}
 
 	private static void setParamsForMeasurement(int bits, int blocks, double thresh) {
@@ -376,6 +423,8 @@ public class Comparison {
 			img.refreshParamsForEvaluation(blocks, blocks);
 		}
 	}
+	
+	
 	
 	
 	

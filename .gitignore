@@ -3,6 +3,7 @@ evaluation_folder/results_precision_recall_f1.txt
 results/**
 test/**
 database/**
+cache/**
 
 #eclipse gitignore
 
