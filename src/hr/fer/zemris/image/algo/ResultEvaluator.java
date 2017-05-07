@@ -10,8 +10,6 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -231,11 +229,8 @@ public class ResultEvaluator {
 					StandardOpenOption.CREATE,
 					StandardOpenOption.WRITE,
 					StandardOpenOption.TRUNCATE_EXISTING);
-//			int num = 0;
-//			int counter = 0;
-//			
+
 			for( Object key: keys){
-//				counter++;
 				String confWithThresh = ((String)key);
 				String tempConf = confWithThresh.substring(0, confWithThresh.lastIndexOf("-"));
 				System.out.println("Calculating parameters for :"+confWithoutThresh);
@@ -252,7 +247,6 @@ public class ResultEvaluator {
 				}
 				Result result = re.getResults().get(key);
 				// this num must be  NUMBER_OF_NEEDLES * NUMBER_OF_MODIFIED_IMAGES
-//				num += result.getFalseNegative() + result.getFalsePositive() + result.getTrueNegative()  + result.getTruePositive();
 				result.calculateParams();
 				bw.write(confWithThresh + "\t" + result + "\n" );
 				

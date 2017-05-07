@@ -2,8 +2,11 @@ package hr.fer.zemris.image.algo;
 
 import hr.fer.zemris.image.dataset.Dataset;
 import hr.fer.zemris.image.dataset.DatasetHashHolder;
+import hr.fer.zemris.image.dataset.LSHResult;
+import hr.fer.zemris.image.dataset.LocalSensitiveHashHolder;
 import hr.fer.zemris.image.model.IDatesetHashHolder;
 import hr.fer.zemris.image.model.IHashableImageAlgo;
+import hr.fer.zemris.image.model.ILocalSensitiveHashHolder;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -18,7 +21,6 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -152,6 +154,31 @@ public class Comparison {
 		System.out.println("Pronađeno " + counter + " kandidata!");
 		return similar;
 	}
+	
+	public static List<Integer> checkWithinHammingDistance(LSHResult lshResult,
+		int hammingDistance, BitSet current) {
+		int counter = 0;
+		List<Integer> similar = new ArrayList<Integer>();
+		List<BitSet> candidates = lshResult.getLocalitySensitiveCandidates();
+		List<Integer> candidateIndexes = lshResult.getLocalitySensitiveCandidateIndexes();
+		
+		for (int i = 0; i < candidates.size(); i++) {
+			BitSet testHash = candidates.get(i);
+			int numDifferentBits = compareTwoBitsetsHamming(current, testHash);
+			
+			
+			if( numDifferentBits >= 0 && numDifferentBits <= hammingDistance ){
+				counter++;
+				similar.add(candidateIndexes.get(i));
+				Comparison.results.put(candidateIndexes.get(i), (double) numDifferentBits);
+			}
+			
+		}
+		System.out.println("Pronađeno " + counter + " kandidata!");
+		return similar;
+	}
+	
+	
 	/**
 	 * Method that checks list of candidates. All candidates are compared to hash
 	 * that is defined by indexLine, and are greater than specified threshold.
@@ -260,8 +287,9 @@ public class Comparison {
 			images.add(new HashableImage(isGray, imagePaths.get(i).toString()));
 		}
 		IHashableImageAlgo algo = new RobustScalingAlgo();
-		
+		//without lsh IDatesetHashHolder datasetHashHolder = new DatasetHashHolder();
 		IDatesetHashHolder datasetHashHolder = new DatasetHashHolder();
+		ILocalSensitiveHashHolder localSensitiveHashHolder = new LocalSensitiveHashHolder(datasetHashHolder);
 		// create hashes for cache
 		for(int bitSizeIndex = 0; bitSizeIndex < arrayOfBitsSize.length; bitSizeIndex++){
 			for( int blockIndex = 0; blockIndex < blockNums.length; blockIndex++){
@@ -277,10 +305,11 @@ public class Comparison {
 		//at this point all hashes can be found in datasetHashHolder
 		images.clear();
 		
-		for(int needleIndex = 0; needleIndex < needles.size(); needleIndex++) {
-			System.out.println("Finding candidates of " + needles.get(needleIndex));
-			for(int bitSizeIndex = 0; bitSizeIndex < arrayOfBitsSize.length; bitSizeIndex++){
-				for( int blockIndex = 0; blockIndex < blockNums.length; blockIndex++){
+		
+		for(int bitSizeIndex = 0; bitSizeIndex < arrayOfBitsSize.length; bitSizeIndex++){
+			for( int blockIndex = 0; blockIndex < blockNums.length; blockIndex++){
+				for(int needleIndex = 0; needleIndex < needles.size(); needleIndex++) {
+					System.out.println("Finding candidates of " + needles.get(needleIndex));
 					makeIterationForConfiguration(
 							arrayOfBitsSize[bitSizeIndex],
 							blockNums[blockIndex],
@@ -288,10 +317,11 @@ public class Comparison {
 							isGray,
 							algo,
 							needleIndex,
-							datasetHashHolder);
+							localSensitiveHashHolder);
 				}
 			}
 		}
+		
 	
 	}
 
@@ -327,7 +357,7 @@ public class Comparison {
 		//TODO save them to filesystem?
 		
 	}
-	private static void makeIterationForConfiguration(int numBits,int numBlock, List<String> needles, boolean isGray, IHashableImageAlgo algo, int needleIndex, IDatesetHashHolder datasetHashHolder) {
+	private static void makeIterationForConfiguration(int numBits,int numBlock, List<String> needles, boolean isGray, IHashableImageAlgo algo, int needleIndex, ILocalSensitiveHashHolder localSensitiveHashHolder) {
 		//initial starting point for threshold, 
 		int threshold = (int) Comparison.THRESHOLD;
 		int DEFAULT_SIZE = 50;
@@ -343,14 +373,10 @@ public class Comparison {
 		int INCREMENT = (int)(0.05*SIZE_OF_HASH);
 		
 		String baseKey = String.format(IDatesetHashHolder.BASE_KEY_FORMAT, numBits, numBlock);
-		String needlesKey = datasetHashHolder.formKeyForConfiguration(true, baseKey);
-		String modifiedKey = datasetHashHolder.formKeyForConfiguration(false, baseKey);
-		
-		List<BitSet> candidates = new ArrayList<BitSet>(10000);
-		
+		String needlesKey = localSensitiveHashHolder.formKeyForConfiguration(true, baseKey);
 		//add to 0 index the search needle
-		candidates.add(datasetHashHolder.getHashesForConfiguration(needlesKey).get(needleIndex));
-		candidates.addAll(datasetHashHolder.getHashesForConfiguration(modifiedKey));
+		LSHResult lshResult = localSensitiveHashHolder.getLocalitySensitiveCandidates(numBits, numBlock, needleIndex);
+		System.out.println("Found " + (lshResult.getLocalitySensitiveCandidates().size()) + " candidates for " + needle );
 
 		while( threshold  <  MAX_THRESH ){
 			
@@ -369,19 +395,19 @@ public class Comparison {
 						StandardOpenOption.TRUNCATE_EXISTING);
 //				//compare with JaccardDistance
 //				List<Integer> results = checkWithinJaccardDistance(candidates, 0, threshold);
-				List<Integer> results = checkWithinHammingDistance(candidates, 0, threshold);
-				//since we added needle real index of result is indexResult -1
+				List<Integer> results = checkWithinHammingDistance(
+						lshResult,
+						threshold,
+						localSensitiveHashHolder.getHashesForConfiguration(needlesKey).get(needleIndex));
+						
+				
 				for(Integer indexResult : results){
 					bw.write(
-							imagePaths.get(indexResult - 1).getFileName() +
+							imagePaths.get(indexResult).getFileName() +
 							"\t" +
 							Comparison.results.get(indexResult)+"\n");
 				}
 				bw.close();
-//				if( results.size() == candidates.size() - 1 ) {
-//					// no need to continue all images with max length of hash found
-//					break;
-//				}
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
