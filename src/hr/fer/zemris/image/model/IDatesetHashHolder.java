@@ -21,7 +21,7 @@ public interface IDatesetHashHolder {
 	/**
 	 * Path to directory where cache is saved ( or will be saved )
 	 */
-	public static final String CACHE_PATH = "cache";
+	public static final String CACHE_PATH = "cache/cached_hases";
 	/**
 	 * Specifies the format for creating base configuration key.
 	 */

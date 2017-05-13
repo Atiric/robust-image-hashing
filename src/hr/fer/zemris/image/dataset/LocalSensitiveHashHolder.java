@@ -15,6 +15,9 @@ public class LocalSensitiveHashHolder  implements ILocalSensitiveHashHolder{
 	
 	private IDatesetHashHolder datasetHashHolder;
 	private HashMap<Integer, Set<Integer>> currentFoundCandidates;
+	/**
+	 * Contains last searched configuration string.
+	 */
 	private String lastSearched;
 
 	public LocalSensitiveHashHolder(IDatesetHashHolder datesetHashHolder) {
