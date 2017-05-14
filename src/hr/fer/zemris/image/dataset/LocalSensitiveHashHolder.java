@@ -48,7 +48,6 @@ public class LocalSensitiveHashHolder  implements ILocalSensitiveHashHolder{
 		List<BitSet> modifiedHashes = getHashesForConfiguration(modifiedKey);
 		//first we add all hashes from original set with needles
 		List<BitSet> searchHashes = new ArrayList<BitSet>( getHashesForConfiguration(needleKey) );
-		int sizeModified = modifiedHashes.size();
 		int sizeNeedles = searchHashes.size();
 		//then we add all modified hashes for O(N) pass of LSH
 		searchHashes.addAll(modifiedHashes);

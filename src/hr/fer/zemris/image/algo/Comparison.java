@@ -1,5 +1,6 @@
 package hr.fer.zemris.image.algo;
 
+import hr.fer.zemris.image.config.Configuration;
 import hr.fer.zemris.image.dataset.Dataset;
 import hr.fer.zemris.image.dataset.DatasetHashHolder;
 import hr.fer.zemris.image.dataset.LSHResult;
@@ -13,9 +14,9 @@ import hr.fer.zemris.image.model.MetricType;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
@@ -29,19 +30,20 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.opencv.core.Core;
+import org.yaml.snakeyaml.Yaml;
 
 
 public class Comparison {
 	
-	private static double THRESHOLD = 0.0;
 	/**
 	 * Map that contains indexes of images as keys and similarity as value, first key is current image that is being compared.
 	 */
 	private static Map<Integer, Double> results;
 	
 	private static List<Path> imagePaths;
-	private static ArrayList<HashableImage> images;
 	private static MetricIncrementCalculator metricIncrementCalculator;
+
+	private static Configuration configuration;
 	/**
 	 * Computes Jaccard similarity of two bitsets that represents hashes.
 	 * @param imgBitSet1 First {@link BitSet} 
@@ -56,7 +58,6 @@ public class Comparison {
 		int counterX = 0;
 		int counterY = 0;
 		
-		//TODO what about Z rows? combination 0-0
 		for(int i = 0; i < imgBitSet1.size(); i++){
 			if( imgBitSet1.get(i)  && imgBitSet2.get(i) ){
 				counterX++;
@@ -126,8 +127,9 @@ public class Comparison {
 		
 	}
 	
+	
 	/**
-	 * Not ready for comparison yet. Work in progress.
+	 * Compares the candidates with the hash at specified index within Hamming distance.
 	 * @param candidates List of candidates for comparison.
 	 * @param indexLine define the current hash that is compared.
 	 * @param hammingDistance define the maximum Hamming  
@@ -136,7 +138,6 @@ public class Comparison {
 	 */
 	public static List<Integer> checkWithinHammingDistance(List<BitSet> candidates,
 			int indexLine, int hammingDistance) {
-		//TODO adapt for algorithm
 		int counter = 0;
 		BitSet current = candidates.get(indexLine);
 		List<Integer> similar = new ArrayList<Integer>();
@@ -267,42 +268,51 @@ public class Comparison {
 		
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 		Comparison.results = new HashMap<>();
-		Comparison.metricIncrementCalculator = new MetricIncrementCalculator( MetricType.HAMMING_DISTANCE);
 		
-		String needlesPath = "test";
-		boolean isGray = true ;
-		
-		int[] arrayOfBitsSize = new int[]{4, 6, 7};
-		// define the blocks as 2 per row 2 per col, 3 per row 3 per col ... etc
-		int[] blockNums = new int[] { 4, 16, 32};
+		Yaml yaml = new Yaml();
+		configuration = null;
+		try( InputStream in = Files.newInputStream(Paths.get("config/config.yml"))){
+			configuration = yaml.loadAs(in, Configuration.class);
+		} catch (IOException e) {
+			System.err.println("Sth went wrong: " + e.toString());
+		}
 
-		Dataset dataset = new Dataset("modified_images");//"TPobfuscated"
+		Comparison.metricIncrementCalculator = new MetricIncrementCalculator( configuration.getMetricType());
+		
+		String needlesPath = configuration.getNeedlesPath();
+		boolean isGray = configuration.getIsGrey();
+		boolean usingLSH = configuration.getMetricType() == MetricType.HAMMING_DISTANCE_LSH  || configuration.getMetricType() == MetricType.JACCARD_DISTANCE_LSH;
+		List<Integer> bitSizes = configuration.getBitsSize();
+		// define the blocks as 2 per row 2 per col, 3 per row 3 per col ... etc
+		List<Integer> blockSizes = configuration.getBlockSize();
+
+		Dataset dataset = new Dataset(configuration.getModifiedImages());//"TPobfuscated"
 		Comparison.imagePaths = dataset.getImagePaths();
-		Comparison.images = new ArrayList<HashableImage>();
 		//mock definitions of block, needed for initializing mock HashableImages,
 		//blocks are recalculated as specified by arrayOfBitsSize and blockNums
 		HashableImage.NUM_BLOCK_COL = 1;
 		HashableImage.NUM_BLOCK_ROW = 1;
 		
 		List<String> needles = findPathsOfFiles(needlesPath);
-		for(int i = 0; i < imagePaths.size(); i++){
-			images.add(new HashableImage(isGray, imagePaths.get(i).toString()));
-		}
+		
 		IHashableImageAlgo algo = new RobustScalingAlgo();
 		//without lsh IDatesetHashHolder datasetHashHolder = new DatasetHashHolder();
 		IDatesetHashHolder datasetHashHolder = null;
 		ILocalSensitiveHashHolder localSensitiveHashHolder = null;
 		
-		if( !Files.exists(Paths.get(IDatesetHashHolder.CACHE_PATH)) ){
+		if( !Files.exists(Paths.get(configuration.getCachePath())) || configuration.getRecalculateHashes() ){
 			datasetHashHolder = new DatasetHashHolder();
-			localSensitiveHashHolder = new LocalSensitiveHashHolder(datasetHashHolder);
+			if ( usingLSH ){
+				localSensitiveHashHolder = new LocalSensitiveHashHolder(datasetHashHolder);
+			}
+			
 			System.out.println("Calculating hashes...");
 			// create hashes for cache
-			for(int bitSizeIndex = 0; bitSizeIndex < arrayOfBitsSize.length; bitSizeIndex++){
-				for( int blockIndex = 0; blockIndex < blockNums.length; blockIndex++){
+			for(Integer bitSize : bitSizes ){
+				for( Integer blockSize : blockSizes){
 					initCacheForConf(
-							arrayOfBitsSize[bitSizeIndex],
-							blockNums[blockIndex],
+							bitSize,
+							blockSize,
 							dataset,
 							algo,
 							needles,
@@ -310,31 +320,31 @@ public class Comparison {
 				}
 			}
 			System.out.println("Saving hashes to cache...");
-			((DatasetHashHolder) datasetHashHolder ).serialize(IDatesetHashHolder.CACHE_PATH);
+			((DatasetHashHolder) datasetHashHolder ).serialize(configuration.getCachePath());
 		//deserialize from file system
 		} else {
 			System.out.println("Reusing calculated hashes from cache...");
-			datasetHashHolder = DatasetHashHolder.deSerialize(IDatesetHashHolder.CACHE_PATH);
-			localSensitiveHashHolder = new LocalSensitiveHashHolder(datasetHashHolder);
+			datasetHashHolder = DatasetHashHolder.deSerialize(configuration.getCachePath());
+			if( usingLSH ){
+				localSensitiveHashHolder = new LocalSensitiveHashHolder(datasetHashHolder);
+			}
+			
 		}
 		
-		
 		//at this point all hashes can be found in datasetHashHolder
-		images.clear();
 		
-		
-		for(int bitSizeIndex = 0; bitSizeIndex < arrayOfBitsSize.length; bitSizeIndex++){
-			for( int blockIndex = 0; blockIndex < blockNums.length; blockIndex++){
+		for(Integer bitSize : bitSizes ){
+			for( Integer blockSize : blockSizes){
 				for(int needleIndex = 0; needleIndex < needles.size(); needleIndex++) {
 					System.out.println("Finding candidates of " + needles.get(needleIndex));
 					makeIterationForConfiguration(
-							arrayOfBitsSize[bitSizeIndex],
-							blockNums[blockIndex],
+							bitSize,
+							blockSize,
 							needles,
 							isGray,
 							algo,
 							needleIndex,
-							localSensitiveHashHolder);
+							(usingLSH ? localSensitiveHashHolder: datasetHashHolder));
 				}
 			}
 		}
@@ -349,7 +359,7 @@ public class Comparison {
 		String baseFileName = String.format(IDatesetHashHolder.BASE_KEY_FORMAT, bits, blocks);
 		System.out.println("Calculating and caching hashes for " + baseFileName);
 		
-		setParamsForMeasurement(bits, blocks, 0.0d);
+		setParamsForMeasurement(bits, blocks);
 		
 		List<BitSet> needleHashes = new ArrayList<BitSet>(1500);
 		for(int i=0; i < needlesPath.size(); i++){
@@ -375,9 +385,7 @@ public class Comparison {
 		
 		
 	}
-	private static void makeIterationForConfiguration(int numBits,int numBlock, List<String> needles, boolean isGray, IHashableImageAlgo algo, int needleIndex, ILocalSensitiveHashHolder localSensitiveHashHolder) {
-		//initial starting point for threshold, 
-		int threshold = (int) Comparison.THRESHOLD;
+	private static void makeIterationForConfiguration(int numBits,int numBlock, List<String> needles, boolean isGray, IHashableImageAlgo algo, int needleIndex, IDatesetHashHolder hashHolder) {
 		int DEFAULT_SIZE = 50;
 		String needle = needles.get(needleIndex);
 		
@@ -388,23 +396,38 @@ public class Comparison {
 		//after setting the params that are static calculate size of hash
 		int SIZE_OF_HASH = HashableImage.BITS_FOR_COMPONENT * HashableImage.NUM_BLOCK_COL * HashableImage.NUM_BLOCK_ROW;//and times num of component which is 1
 		int MAX_THRESH = SIZE_OF_HASH > DEFAULT_SIZE ? SIZE_OF_HASH: DEFAULT_SIZE;//on x axis of graph it is represented as Jaccard distance 1 - MAX_THRESH
-		
-		metricIncrementCalculator.setRangePercentageIncrement(0.0d, MAX_THRESH, 0.05);
+		if( configuration.getMetricType() == MetricType.HAMMING_DISTANCE_CACHE 
+					|| configuration.getMetricType() == MetricType.HAMMING_DISTANCE_LSH){
+			metricIncrementCalculator.setRangePercentageIncrement(0.0d, MAX_THRESH, 0.05);
+		}else {
+			metricIncrementCalculator.setRangePercentageIncrement(0.0d, 1.00, 0.05);
+		}
+			
 		
 		String baseKey = String.format(IDatesetHashHolder.BASE_KEY_FORMAT, numBits, numBlock);
-		String needlesKey = localSensitiveHashHolder.formKeyForConfiguration(true, baseKey);
-		//add to 0 index the search needle
-		LSHResult lshResult = localSensitiveHashHolder.getLocalitySensitiveCandidates(numBits, numBlock, needleIndex);
-		System.out.println("Found " + (lshResult.getLocalitySensitiveCandidates().size()) + " candidates for " + needle );
+		String needlesKey = hashHolder.formKeyForConfiguration(true, baseKey);
+		String modifiedKey = hashHolder.formKeyForConfiguration(false, baseKey);
+		List<BitSet> needleHashes = hashHolder.getHashesForConfiguration(needlesKey);
+		
+		LSHResult lshResult = null;
+		if( hashHolder instanceof ILocalSensitiveHashHolder ){
+			lshResult = ((ILocalSensitiveHashHolder)hashHolder).getLocalitySensitiveCandidates(numBits, numBlock, needleIndex);
+			System.out.println("Found " + (lshResult.getLocalitySensitiveCandidates().size()) + " candidates for " + needle );
+		}
+		
 
 		while( metricIncrementCalculator.hasNext() ){
 			
 			String searchNeedleSignature = needle.substring(needle.lastIndexOf(File.separatorChar)+1, needle.lastIndexOf(".") );
 			String threshValue = null;
-			if( metricIncrementCalculator.getCurrentMetric() == MetricType.HAMMING_DISTANCE ){
+			//threshold format is important because threshold for Hamming is more Integer like
+			if( configuration.getMetricType() == MetricType.HAMMING_DISTANCE_CACHE 
+					|| configuration.getMetricType() == MetricType.HAMMING_DISTANCE_LSH ){
 				threshValue = String.format(Locale.UK, "%.2f", Math.floor( metricIncrementCalculator.getCurrentValue()));
-			} else if ( metricIncrementCalculator.getCurrentMetric() == MetricType.JACCARD_DISTANCE ){
-				threshValue = String.format(Locale.UK, "%.2f", metricIncrementCalculator.getCurrentValue());
+			} else if ( configuration.getMetricType() == MetricType.JACCARD_DISTANCE_CACHE 
+					|| configuration.getMetricType() == MetricType.JACCARD_DISTANCE_LSH ){
+				//we need distance threshold, not similarity!
+				threshValue = String.format(Locale.UK, "%.2f", 1.00 - metricIncrementCalculator.getCurrentValue());
 			}
 			String measurementFileName ="results/"+
 					searchNeedleSignature +  
@@ -418,23 +441,81 @@ public class Comparison {
 						StandardOpenOption.CREATE,
 						StandardOpenOption.WRITE,
 						StandardOpenOption.TRUNCATE_EXISTING);
-//				//compare with JaccardDistance
-//				List<Integer> results = checkWithinJaccardDistance(candidates, 0, threshold);
-				List<Integer> results = checkWithinHammingDistance(
-						lshResult,
-						(int)metricIncrementCalculator.getCurrentValue(),
-						localSensitiveHashHolder.getHashesForConfiguration(needlesKey).get(needleIndex));
+				
+				List<Integer> results = null;
+				
+				switch (configuration.getMetricType()) {
+					case JACCARD_DISTANCE_LSH:
+						results = checkWithinJaccardDistance(
+								lshResult,
+								metricIncrementCalculator.getCurrentValue(),
+								hashHolder.getHashesForConfiguration(needlesKey).get(needleIndex));
+						break;
+					case HAMMING_DISTANCE_CACHE:
+						List<BitSet> candidates = hashHolder.getHashesForConfiguration(modifiedKey);
+						List<BitSet> searchCandidates = new ArrayList<BitSet>(candidates);
+						searchCandidates.add(0, needleHashes.get(needleIndex));
+						results = checkWithinHammingDistance(searchCandidates, 0, (int)metricIncrementCalculator.getCurrentValue());
+						searchCandidates.clear();
+						break;
+					case HAMMING_DISTANCE_LSH:
+						results = checkWithinHammingDistance(
+								lshResult,
+								(int)metricIncrementCalculator.getCurrentValue(),
+								hashHolder.getHashesForConfiguration(needlesKey).get(needleIndex));
+						break;
+					case JACCARD_DISTANCE_CACHE:
+						candidates = hashHolder.getHashesForConfiguration(modifiedKey);
+						searchCandidates = new ArrayList<BitSet>(candidates);
+						searchCandidates.add(0, needleHashes.get(needleIndex));
+						results = checkWithinJaccardDistance(searchCandidates, 0, metricIncrementCalculator.getCurrentValue());
+						searchCandidates.clear();
+						break;
+					default:
+						break;
+				}
+//				
+//				if ( configuration.getMetricType() == MetricType.JACCARD_DISTANCE_LSH){
+//					results = checkWithinJaccardDistance(
+//							lshResult,
+//							metricIncrementCalculator.getCurrentValue(),
+//							hashHolder.getHashesForConfiguration(needlesKey).get(needleIndex));
+//				} else if( configuration.getMetricType() == MetricType.HAMMING_DISTANCE_CACHE ){
+//					List<BitSet> candidates = hashHolder.getHashesForConfiguration(modifiedKey);
+//					List<BitSet> searchCandidates = new ArrayList<BitSet>(candidates);
+//					searchCandidates.add(0, needleHashes.get(needleIndex));
+//					results = checkWithinHammingDistance(searchCandidates, 0, (int)metricIncrementCalculator.getCurrentValue());
+//					searchCandidates.clear();
+//				} else if ( configuration.getMetricType() == MetricType.HAMMING_DISTANCE_LSH ){
+//					results = checkWithinHammingDistance(
+//							lshResult,
+//							(int)metricIncrementCalculator.getCurrentValue(),
+//							hashHolder.getHashesForConfiguration(needlesKey).get(needleIndex));
+//				} else {
+//					// must be   MetricType.JACCARD_DISTANCE_CACHE
+//					List<BitSet> candidates = hashHolder.getHashesForConfiguration(modifiedKey);
+//					List<BitSet> searchCandidates = new ArrayList<BitSet>(candidates);
+//					searchCandidates.add(0, needleHashes.get(needleIndex));
+//					results = checkWithinJaccardDistance(searchCandidates, 0, metricIncrementCalculator.getCurrentValue());
+//					searchCandidates.clear();
+//				}
 						
 				
 				for(Integer indexResult : results){
+					int index = indexResult.intValue();
+					//since we added one more for search candidates in IDatasetHashHolder real index is minus 1 for imagePaths
+					if(hashHolder instanceof DatasetHashHolder ){
+						index--;
+					}
 					bw.write(
-							imagePaths.get(indexResult).getFileName() +
+							imagePaths.get(index).getFileName() +
 							"\t" +
+									
 							Comparison.results.get(indexResult)+"\n");
 				}
 				bw.close();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
+				// do nothng
 				e.printStackTrace();
 			}
 			metricIncrementCalculator.nextMetricIncrement();
@@ -443,6 +524,31 @@ public class Comparison {
 	}
 
 
+	private static List<Integer> checkWithinJaccardDistance(
+			LSHResult lshResult, double threshold, BitSet current) {
+		int counter = 0;
+		List<Integer> similar = new ArrayList<Integer>();
+		List<BitSet> candidates = lshResult.getLocalitySensitiveCandidates();
+		List<Integer> candidateIndexes = lshResult.getLocalitySensitiveCandidateIndexes();
+		
+		
+		for (int i = 0; i < candidates.size(); i++) {
+				
+			BitSet test = candidates.get(i);
+			double similarity = compareTwoBitsetsGroup(current, test);
+			if ( Double.compare(threshold, similarity)  < 0 ){
+				counter++;
+				similar.add(candidateIndexes.get(i));
+				Comparison.results.put(candidateIndexes.get(i), similarity);
+			}
+		}
+		
+		System.out.println("Pronađeno " + counter + " kandidata!");
+		
+		return similar;
+		
+		
+	}
 	private static List<String> findPathsOfFiles(String dirPath) {
 		List<String> fileNames = new ArrayList<String>();
 		
@@ -465,14 +571,11 @@ public class Comparison {
 		return fileNames;
 	}
 
-	private static void setParamsForMeasurement(int bits, int blocks, double thresh) {
+	private static void setParamsForMeasurement(int bits, int blocks) {
 		HashableImage.BITS_FOR_COMPONENT = bits;
 		HashableImage.NUM_PIXEL_RANGES =(int) Math.pow(2, bits);
 		HashableImage.NUM_BLOCK_COL = blocks;
 		HashableImage.NUM_BLOCK_ROW = blocks;
-		for( HashableImage img : Comparison.images){
-			img.refreshParamsForEvaluation(blocks, blocks);
-		}
 	}
 	
 	

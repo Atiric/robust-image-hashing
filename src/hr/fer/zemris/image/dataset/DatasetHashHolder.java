@@ -3,9 +3,7 @@ package hr.fer.zemris.image.dataset;
 import hr.fer.zemris.image.model.IDatesetHashHolder;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.file.Path;

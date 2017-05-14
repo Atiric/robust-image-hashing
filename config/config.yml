@@ -1,0 +1,19 @@
+bitsSize:
+  - 4
+  - 6
+  - 7
+blockSize:
+  - 4
+  - 16
+  - 32
+isGrey: true
+# Path to originals that will be searched, needles set A
+needlesPath: test
+# Path to modified images, dataset of changed originals, set B
+modifiedImages: modified_images
+# Path to directory where cache is saved ( or will be saved )
+cachePath: cache/cached_hashes
+# Type of metric for comparison { JACCARD_DISTANCE_CACHE, HAMMING_DISTANCE_CACHE, JACCARD_DISTANCE_LSH, HAMMING_DISTANCE_LSH }
+metricType: JACCARD_DISTANCE_CACHE
+# flag for recalculating the hashes, regardless of the existance of file defined in cache/cached_hashes
+recalculateHashes: true

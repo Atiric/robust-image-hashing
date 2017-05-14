@@ -6,6 +6,7 @@ import hr.fer.zemris.image.model.MetricType;
 public class MetricIncrementCalculator implements IMetricIncrementCalculator {
 	
 	private MetricType metricType;
+	@SuppressWarnings("unused")
 	private double downLimit;
 	private double upLimit;
 	private double increment;

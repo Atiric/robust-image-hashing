@@ -142,6 +142,7 @@ public class HashableImage {
 	 * @param image image that is being resized.
 	 * @return resized image.
 	 */
+	@SuppressWarnings("unused")
 	private Mat resizeImage(Mat image){
 		Mat resizeImage = new Mat();
 		Size sz = new Size(RESIZED_WIDTH,RESIZED_HEIGHT);

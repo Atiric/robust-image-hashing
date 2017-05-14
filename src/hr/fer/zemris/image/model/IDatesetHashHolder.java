@@ -18,10 +18,7 @@ public interface IDatesetHashHolder {
 	 * Field that can be used for configuring key for modified list of hashes.
 	 */
 	public static final String MODIFIED_PREFIX = "MODIFIED_PREFIX";
-	/**
-	 * Path to directory where cache is saved ( or will be saved )
-	 */
-	public static final String CACHE_PATH = "cache/cached_hases";
+	
 	/**
 	 * Specifies the format for creating base configuration key.
 	 */

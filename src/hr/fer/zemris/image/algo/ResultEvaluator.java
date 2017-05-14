@@ -185,8 +185,8 @@ public class ResultEvaluator {
 		re.beginEvaluation();
 		List<String> keys = new ArrayList<> ( re.getResults().keySet());
 		keys.sort( (key1, key2) -> {
-			String conf1 = key1.substring(0, key1.lastIndexOf("-"));
-			String conf2 = key2.substring(0, key2.lastIndexOf("-"));
+//			String conf1 = key1.substring(0, key1.lastIndexOf("-"));
+//			String conf2 = key2.substring(0, key2.lastIndexOf("-"));
 			
 			int indexBlock1 = key1.indexOf("-blo");
 			int indexBlock2 = key2.indexOf("-blo");
@@ -255,7 +255,7 @@ public class ResultEvaluator {
 			
 			ResultEvaluator.bw.close();
 		} catch (IOException e) {
-			// TODO do nothing
+			// do nothing
 			e.printStackTrace();
 		}
 	}
