@@ -204,11 +204,11 @@ public class Comparison {
 			
 			if( i == indexLine ) continue;
 			BitSet test = candidates.get(i);
-			double similarity = compareTwoBitsetsGroup(current, test);
-			if ( Double.compare(threshold, similarity)  < 0 ){
+			double distance = 1.00 - compareTwoBitsetsGroup(current, test);
+			if ( Double.compare(threshold, distance)  > 0 ){
 				counter++;
 				similar.add(i);
-				Comparison.results.put(i, similarity);
+				Comparison.results.put(i, distance);
 			}
 		}
 		
@@ -426,8 +426,7 @@ public class Comparison {
 				threshValue = String.format(Locale.UK, "%.2f", Math.floor( metricIncrementCalculator.getCurrentValue()));
 			} else if ( configuration.getMetricType() == MetricType.JACCARD_DISTANCE_CACHE 
 					|| configuration.getMetricType() == MetricType.JACCARD_DISTANCE_LSH ){
-				//we need distance threshold, not similarity!
-				threshValue = String.format(Locale.UK, "%.2f", 1.00 - metricIncrementCalculator.getCurrentValue());
+				threshValue = String.format(Locale.UK, "%.2f", metricIncrementCalculator.getCurrentValue());
 			}
 			String measurementFileName ="results/"+
 					searchNeedleSignature +  
@@ -474,31 +473,6 @@ public class Comparison {
 					default:
 						break;
 				}
-//				
-//				if ( configuration.getMetricType() == MetricType.JACCARD_DISTANCE_LSH){
-//					results = checkWithinJaccardDistance(
-//							lshResult,
-//							metricIncrementCalculator.getCurrentValue(),
-//							hashHolder.getHashesForConfiguration(needlesKey).get(needleIndex));
-//				} else if( configuration.getMetricType() == MetricType.HAMMING_DISTANCE_CACHE ){
-//					List<BitSet> candidates = hashHolder.getHashesForConfiguration(modifiedKey);
-//					List<BitSet> searchCandidates = new ArrayList<BitSet>(candidates);
-//					searchCandidates.add(0, needleHashes.get(needleIndex));
-//					results = checkWithinHammingDistance(searchCandidates, 0, (int)metricIncrementCalculator.getCurrentValue());
-//					searchCandidates.clear();
-//				} else if ( configuration.getMetricType() == MetricType.HAMMING_DISTANCE_LSH ){
-//					results = checkWithinHammingDistance(
-//							lshResult,
-//							(int)metricIncrementCalculator.getCurrentValue(),
-//							hashHolder.getHashesForConfiguration(needlesKey).get(needleIndex));
-//				} else {
-//					// must be   MetricType.JACCARD_DISTANCE_CACHE
-//					List<BitSet> candidates = hashHolder.getHashesForConfiguration(modifiedKey);
-//					List<BitSet> searchCandidates = new ArrayList<BitSet>(candidates);
-//					searchCandidates.add(0, needleHashes.get(needleIndex));
-//					results = checkWithinJaccardDistance(searchCandidates, 0, metricIncrementCalculator.getCurrentValue());
-//					searchCandidates.clear();
-//				}
 						
 				
 				for(Integer indexResult : results){
@@ -535,11 +509,11 @@ public class Comparison {
 		for (int i = 0; i < candidates.size(); i++) {
 				
 			BitSet test = candidates.get(i);
-			double similarity = compareTwoBitsetsGroup(current, test);
-			if ( Double.compare(threshold, similarity)  < 0 ){
+			double distance = 1.00 - compareTwoBitsetsGroup(current, test);
+			if ( Double.compare(threshold, distance)  > 0 ){
 				counter++;
 				similar.add(candidateIndexes.get(i));
-				Comparison.results.put(candidateIndexes.get(i), similarity);
+				Comparison.results.put(candidateIndexes.get(i), distance);
 			}
 		}
 		
