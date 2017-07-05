@@ -10,7 +10,7 @@ public class RobustScalingAlgo implements IHashableImageAlgo {
 	@Override
 	public BitSet executeAlgo(HashableImage image) {
 		int numBlocks = image.getBlocks().size();
-		int predictedSize = HashableImage.BITS_FOR_COMPONENT * numBlocks;
+		int predictedSize = HashableImage.BITS_FOR_COMPONENT * numBlocks* numBlocks;
 		BitSet imgBitset = new BitSet(predictedSize+1);
 		int bitsetPos = 0;
 		for(int blockIndex = 0; blockIndex < numBlocks; blockIndex++){

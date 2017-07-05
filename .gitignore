@@ -1,5 +1,6 @@
 modified_images/**
 evaluation_folder/results_precision_recall_f1.txt
+evaluation_folder/figure.jpeg
 results/**
 test/**
 database/**

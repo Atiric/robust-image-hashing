@@ -5,20 +5,15 @@ set style line 1 linecolor rgb '#0060ad' linetype 1 linewidth 2
 set style line 2 linecolor rgb '#dd181f' linetype 1 linewidth 2
 set style line 3 linecolor rgb '#F0681f' linetype 1 linewidth 2
 
-set ylabel "P, R, F1"
-set yrange [0:1.1]
 set datafile separator "\t"
-
+set term jpeg size 600, 2000
+set output "figure.jpeg"
 #pretpostavka da je sortirano krecuci sa bits-4-blocks-4 bits-4-blocks-16 ...
-set multiplot layout 3,3 rowsfirst
-#plot "dataset7GNU.txt" index 0 using 1:2 title 'Razred 1' with points pointtype 1, \
-#     "dataset7GNU.txt" index 1 using 1:2 title 'Razred 2' with points pointtype 2, \
-#     "dataset7GNU.txt" index 2 using 1:2 title 'Razred 3' with points pointtype 5	
+set multiplot layout 9,1 rowsfirst
 
-#plot for [i=3:5]  using 2:i path index 0 with lines  
 
 path = "results_precision_recall_f1.txt"
-xlab = "Jaccard distance threshold"
+xlab = "Hamming distance threshold"
 
 set xlabel xlab
 set ylabel "P, R, F1"

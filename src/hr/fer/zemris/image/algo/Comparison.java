@@ -400,7 +400,7 @@ public class Comparison {
 					|| configuration.getMetricType() == MetricType.HAMMING_DISTANCE_LSH){
 			metricIncrementCalculator.setRangePercentageIncrement(0.0d, MAX_THRESH, 0.05);
 		}else {
-			metricIncrementCalculator.setRangePercentageIncrement(0.0d, 1.00, 0.05);
+			metricIncrementCalculator.setRangePercentageIncrement(0.0d, 1.0, 0.05);
 		}
 			
 		

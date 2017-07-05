@@ -1,7 +1,10 @@
 package hr.fer.zemris.image.algo;
 
+import hr.fer.zemris.image.config.Configuration;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,6 +19,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import org.yaml.snakeyaml.Yaml;
 
 public class ResultEvaluator {
 	
@@ -181,7 +186,15 @@ public class ResultEvaluator {
 	}
 	
 	public static void main(String[] args) {
-		ResultEvaluator re = new ResultEvaluator("results", "test", "modified_images");
+		Yaml yaml = new Yaml();
+		Configuration configuration = null;
+		try( InputStream in = Files.newInputStream(Paths.get("config/config.yml"))){
+			configuration = yaml.loadAs(in, Configuration.class);
+		} catch (IOException e) {
+			System.err.println("Sth went wrong: " + e.toString());
+		}
+
+		ResultEvaluator re = new ResultEvaluator("results", configuration.getNeedlesPath(), configuration.getModifiedImages());
 		re.beginEvaluation();
 		List<String> keys = new ArrayList<> ( re.getResults().keySet());
 		keys.sort( (key1, key2) -> {

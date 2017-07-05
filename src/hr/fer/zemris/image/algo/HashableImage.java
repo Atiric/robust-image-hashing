@@ -1,6 +1,5 @@
 package hr.fer.zemris.image.algo;
 
-import hr.fer.zemris.image.dataset.Dataset;
 import hr.fer.zemris.image.model.IHashableImageAlgo;
 
 import java.awt.image.BufferedImage;
@@ -70,7 +69,7 @@ public class HashableImage {
 	/**
 	 * Number of bits reserved for one pixel component when converting it to {@link BitSet}.
 	 */
-	public static int BITS_FOR_COMPONENT = 5;
+	public static int BITS_FOR_COMPONENT = 4;
 
 	/**
 	 * Number of ranges for one pixel.
@@ -227,8 +226,8 @@ public class HashableImage {
 	 */
 	private void generateRect() {
 		if( blocks.isEmpty()){
-			for ( int y=0; y + nBlockRow < imgSizeRows; y+= nBlockRow){
-				for( int x = 0; x + nBlockCol  < imgSizeCols; x += nBlockCol){	
+			for ( int y=0; y + nBlockRow <= imgSizeRows; y+= nBlockRow){
+				for( int x = 0; x + nBlockCol  <= imgSizeCols; x += nBlockCol){	
 					blocks.add(new Rect(x, y, nBlockCol, nBlockRow));
 				}
 			}
@@ -320,12 +319,12 @@ public class HashableImage {
 	}
 	/**
 	 * Image name is a full path to image that is loaded. block_size_row specifies the number of block in rows
-	 * @param args Array of parameters as string : image_name block_size_row block_size_cols is_gray_scale
+	 * @param args Array of parameters as string : image_name block_size_row block_size_cols num_bits is_gray_scale
 	 */
 	static void exampleExecution(String[] args){
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-		//suppose we have 4 args
-		if ( args.length != 4 ){
+		//suppose we have 5 args
+		if ( args.length != 5 ){
 			System.err.println("Invalid number of arguments");
 			System.err.println("Expected arguments: image_name block_num_row block_num_cols is_gray_scale");
 			System.exit(0);
@@ -339,37 +338,36 @@ public class HashableImage {
 			imgPath = args[0];
 			HashableImage.NUM_BLOCK_ROW = Integer.parseInt( args[1] );
 			HashableImage.NUM_BLOCK_COL = Integer.parseInt( args[2] );
-			isGray = Boolean.parseBoolean(args[3]);
+			HashableImage.BITS_FOR_COMPONENT = Integer.parseInt( args[3] );
+			isGray = Boolean.parseBoolean(args[4]);
 		} catch (Exception e) {
+			System.out.println(e);
 			System.err.println("Invalid arguments provided");
 			System.exit(1);
 		}
 		
 		
-		Dataset caltech256Dataset = new Dataset("256_ObjectCategories");
 		//load the needle
 		HashableImage needle = new HashableImage(isGray, imgPath);
-		List<Path> imagePaths = caltech256Dataset.getImagePaths();
-		
-		//IHashableImageAlgo algo = new AvgHashMock();
-		//int i=0;
-		for( Path pathImg : imagePaths ){
-			//Because it was needed to change configuration, definition of rows and columns is static.
-			HashableImage hImg = new HashableImage(isGray, pathImg.toString());
-			//show the image if you want
-			//HashableImage.showResult(hImg.getImgMat());
-			//you can calculate hash
-			//BitSet hash = HashableImage.executeAlgorithm(algo, hImg);
-			
-			//do something with hashes, for example...
-			Comparison.compareTwoHasable(needle, hImg);
-			
-			//System.out.printf("Obrađena %d slika ...\n", i);
-			//i++;
-			
-			
+		RobustScalingAlgo rsa = new RobustScalingAlgo();
+		BitSet bitSet = rsa.executeAlgo(needle);
+		HashableImage.showResult(needle.getSubmatrixBlock(0));
+		StringBuilder sb = new StringBuilder();
+		byte[] bytes = bitSet.toByteArray();
+		int sizeOfHash = HashableImage.NUM_BLOCK_ROW * HashableImage.NUM_BLOCK_COL * HashableImage.BITS_FOR_COMPONENT;
+		System.out.println("veličina sažetka je :" + sizeOfHash);
+		for( int i = 0; i < (sizeOfHash /8); i++ ){
+			if( i < bytes.length ){
+				byte b = bytes[i];
+				sb.append(String.format("%02x ", b));
+			} else {
+				sb.append("00 ");
+			}
 			
 		}
+		System.out.println( sb.toString());
 	}
-	
+	public static void main(String[] args) {
+		exampleExecution(args);
+	}
 }
