@@ -1,11 +1,8 @@
 bitsSize:
   - 4
-  - 6
-  - 7
 blockSize:
   - 4
   - 16
-  - 32
 isGrey: true
 # Path to originals that will be searched, needles set A
 needlesPath: 'E:\FER\Diplomski rad\new dataset\Evaluation\image-dataset\database'
@@ -14,6 +11,10 @@ modifiedImages: 'E:\FER\Diplomski rad\new dataset\Evaluation\image-dataset\modif
 # Path to directory where cache is saved ( or will be saved )
 cachePath: cache/cached_hashes
 # Type of metric for comparison { JACCARD_DISTANCE_CACHE, HAMMING_DISTANCE_CACHE, JACCARD_DISTANCE_LSH, HAMMING_DISTANCE_LSH }
-metricType: JACCARD_DISTANCE_LSH
+metricType: HAMMING_DISTANCE_LSH
 # flag for recalculating the hashes, regardless of the existance of file defined in cache/cached_hashes
 recalculateHashes: true
+# range definitions for increment, in percentages number between 0 to 100
+percentLowerBound: 30
+percentUpperBound: 40
+percentIncrement: 2

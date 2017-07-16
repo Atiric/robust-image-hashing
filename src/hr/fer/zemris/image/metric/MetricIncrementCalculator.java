@@ -11,6 +11,7 @@ public class MetricIncrementCalculator implements IMetricIncrementCalculator {
 	private double upLimit;
 	private double increment;
 	private double current;
+	private static double EPSILON = 1e-2;
 	
 	public MetricIncrementCalculator(MetricType metricType, double downLimit, double upLimit, double increment) {
 		this.metricType = metricType;
@@ -23,19 +24,18 @@ public class MetricIncrementCalculator implements IMetricIncrementCalculator {
 
 	@Override
 	public double nextMetricIncrement() {
-		if( !hasNext() ){
-			System.err.println("No next increment");
-			throw new IllegalStateException();
-		} 
+		
 		this.current = current + increment;
 		return  current;
 	}
 
 	@Override
 	public boolean hasNext() {
-		if ( Double.compare(current + increment, upLimit) > 0 || metricType == null) {
+		
+		if( metricType == null || Double.compare(current - increment, upLimit) >= 0){
 			return false;
 		}
+		
 		return true;
 	}
 
@@ -51,7 +51,7 @@ public class MetricIncrementCalculator implements IMetricIncrementCalculator {
 	public void setRangePercentageIncrement(double downLimit, double upLimit,
 			double percentageIncrement) {
 		this.current = downLimit;
-		this.increment = percentageIncrement * ( upLimit - downLimit);
+		this.increment = percentageIncrement;
 		if( Double.compare( this.increment, 0.0d ) < 0 ) {
 			throw new IllegalArgumentException("Check your limits and percentage increment");
 		}

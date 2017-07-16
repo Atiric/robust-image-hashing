@@ -386,7 +386,6 @@ public class Comparison {
 		
 	}
 	private static void makeIterationForConfiguration(int numBits,int numBlock, List<String> needles, boolean isGray, IHashableImageAlgo algo, int needleIndex, IDatesetHashHolder hashHolder) {
-		int DEFAULT_SIZE = 50;
 		String needle = needles.get(needleIndex);
 		
 		HashableImage.BITS_FOR_COMPONENT = numBits;
@@ -395,12 +394,25 @@ public class Comparison {
 		HashableImage.NUM_BLOCK_ROW = numBlock;
 		//after setting the params that are static calculate size of hash
 		int SIZE_OF_HASH = HashableImage.BITS_FOR_COMPONENT * HashableImage.NUM_BLOCK_COL * HashableImage.NUM_BLOCK_ROW;//and times num of component which is 1
-		int MAX_THRESH = SIZE_OF_HASH > DEFAULT_SIZE ? SIZE_OF_HASH: DEFAULT_SIZE;//on x axis of graph it is represented as Jaccard distance 1 - MAX_THRESH
+		
+		double percentLowerBound = (double) configuration.getPercentLowerBound() / 100;
+		double percentUpperBound = (double) configuration.getPercentUpperBound() / 100;
+		double percentIncrement  = (double) configuration.getPercentIncrement() / 100;
+		//this is needed because hamming distance is Integer while Jaccard distance is percentage
+		int upperHammingBound = (int) (percentUpperBound * SIZE_OF_HASH);
+		int lowerHammingBound = (int) ( percentLowerBound * SIZE_OF_HASH);
+		
 		if( configuration.getMetricType() == MetricType.HAMMING_DISTANCE_CACHE 
 					|| configuration.getMetricType() == MetricType.HAMMING_DISTANCE_LSH){
-			metricIncrementCalculator.setRangePercentageIncrement(0.0d, MAX_THRESH, 0.05);
-		}else {
-			metricIncrementCalculator.setRangePercentageIncrement(0.0d, 1.0, 0.05);
+			metricIncrementCalculator.setRangePercentageIncrement(
+					lowerHammingBound,
+					upperHammingBound,
+					(int)Math.ceil( percentIncrement * SIZE_OF_HASH ));
+		} else {
+			metricIncrementCalculator.setRangePercentageIncrement(
+					percentLowerBound,
+					percentUpperBound,
+					percentIncrement);
 		}
 			
 		
@@ -416,7 +428,7 @@ public class Comparison {
 		}
 		
 
-		while( metricIncrementCalculator.hasNext() ){
+		do {
 			
 			String searchNeedleSignature = needle.substring(needle.lastIndexOf(File.separatorChar)+1, needle.lastIndexOf(".") );
 			String threshValue = null;
@@ -493,7 +505,7 @@ public class Comparison {
 				e.printStackTrace();
 			}
 			metricIncrementCalculator.nextMetricIncrement();
-		}
+		} while ( metricIncrementCalculator.hasNext());
 		
 	}
 

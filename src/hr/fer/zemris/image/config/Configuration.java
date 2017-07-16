@@ -12,7 +12,10 @@ public final class Configuration {
 	private String needlesPath;
 	private String modifiedImages;
 	private String cachePath;
-	private Boolean recalculateHashes ;
+	private Boolean recalculateHashes;
+	private Integer percentLowerBound;
+	private Integer percentUpperBound;
+	private Integer percentIncrement;
 	
 	
 	
@@ -111,6 +114,43 @@ public final class Configuration {
 	public void setRecalculateHashes(Boolean recalculateHashes) {
 		this.recalculateHashes = recalculateHashes;
 	}
+
+
+
+	public Integer getPercentLowerBound() {
+		return percentLowerBound;
+	}
+
+
+
+	public void setPercentLowerBound(Integer percentLowerBound) {
+		this.percentLowerBound = percentLowerBound;
+	}
+
+
+
+	public Integer getPercentUpperBound() {
+		return percentUpperBound;
+	}
+
+
+
+	public void setPercentUpperBound(Integer percentUpperBound) {
+		this.percentUpperBound = percentUpperBound;
+	}
+
+
+
+	public Integer getPercentIncrement() {
+		return percentIncrement;
+	}
+
+
+
+	public void setPercentIncrement(Integer percentIncrement) {
+		this.percentIncrement = percentIncrement;
+	}
+	
 	
 	
 	
